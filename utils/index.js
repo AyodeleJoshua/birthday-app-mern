@@ -12,3 +12,9 @@ exports.responseError = (message = "Error", statusCode = 404, data) => {
   }
   throw error;
 };
+
+exports.serviceErrorHandler = (err) => {
+  const error = new Error(err);
+  err.statusCode && (error.statusCode = err.statusCode);
+  throw error;
+};
