@@ -33,16 +33,15 @@ exports.createContact = async (req, res, next) => {
 
 exports.getContacts = async (req, res, next) => {
   try {
-    const { user, lastPage, nextPage, totalContacts } = await getAllContacts(
-      req
-    );
+    const { contacts, lastPage, nextPage, totalContacts } =
+      await getAllContacts(req);
 
-    if (!user || user.contacts.length < 1) {
+    if (!contacts || contacts.length < 1) {
       throw responseError("Empty contact list!", 404);
     }
 
     handleResponse(res, 200, "Contacts found", {
-      contacts: user.contacts,
+      contacts,
       lastPage,
       nextPage,
       totalContacts,

@@ -9,7 +9,6 @@ const userSchema = new Schema(
     email: { type: String, required: true },
     dob: { type: String, required: true },
     password: { type: String, required: true },
-    contacts: [{ type: Schema.Types.ObjectId, ref: "Contact" }],
   },
   { timestamps: true }
 );

@@ -1,15 +1,16 @@
-const User = require("../models/user");
 const Contact = require("../models/contact");
 const { responseError, serviceErrorHandler } = require("../utils");
 
 const PAGE_SIZE = 10;
+const MAX_PAGE_SIZE = 20;
 const CURRENT_PAGE = 1;
 
 exports.createContact = async (req) => {
   try {
     const { firstName, lastName, dob, email, phoneNumber } = req.body;
     const userId = req.userId;
-    const contact = new Contact({
+    let contact;
+    contact = new Contact({
       firstName,
       lastName,
       dob,
@@ -17,53 +18,37 @@ exports.createContact = async (req) => {
       owner: userId,
       email,
     });
-    const savedContact = await contact.save();
-    const user = await User.findById(userId);
-    user.contacts.push(savedContact._id);
-    await user.save();
-    return savedContact;
+    contact = await contact.save();
+    contact = Contact.findById(contact._id);
+    return contact;
   } catch (err) {
     serviceErrorHandler(err);
   }
 };
 
 exports.getAllContacts = async (req) => {
-  const { queryPage, dob } = req.query;
-  const limit = req.query.limit || PAGE_SIZE;
-  const page = queryPage || CURRENT_PAGE;
+  const { page: queryPage, dob, limit: queryLimit } = req.query;
+  const limit =
+    Number(queryLimit) && Number(queryLimit) <= MAX_PAGE_SIZE
+      ? Number(queryLimit)
+      : PAGE_SIZE;
+  const page = Number(queryPage) || CURRENT_PAGE;
   const userId = req.userId;
   try {
-    let retrievedUser;
+    let contacts;
     let contactCount;
+    const searchQuery = { owner: userId };
 
-    if (dob) {
-      retrievedUser = await User.find(
-        { _id: userId, dob },
-        "contacts"
-      ).populate({
-        path: "contacts",
-        perDocumentLimit: limit,
-        options: { skip: (page - 1) * limit },
-      });
-      contactCount = await Contact.find({
-        owner: userId,
-        dob,
-      }).countDocuments();
-    } else {
-      retrievedUser = await User.find({ _id: userId }, "contacts").populate({
-        path: "contacts",
-        perDocumentLimit: limit,
-        options: { skip: (page - 1) * limit },
-      });
-      contactCount = await Contact.find({
-        owner: userId,
-      }).countDocuments();
-    }
+    dob && (searchQuery.dob = dob);
+    contacts = await Contact.find(searchQuery)
+      .skip((page - 1) * limit)
+      .limit(limit);
+    contactCount = await Contact.find(searchQuery).countDocuments();
 
     const lastPage = Math.ceil(contactCount / limit);
     const nextPage = +page + 1;
     return {
-      user: retrievedUser[0],
+      contacts,
       nextPage: nextPage >= lastPage ? null : nextPage,
       lastPage,
       totalContacts: contactCount,
@@ -98,7 +83,9 @@ exports.getSingleContact = async (req) => {
 exports.editContact = async (req) => {
   try {
     const { contactId } = req.params;
+
     const contact = await Contact.findById(contactId);
+
     if (!contact) {
       throw responseError("Contant not found!", 404);
     }
@@ -114,11 +101,14 @@ exports.editContact = async (req) => {
         400
       );
     }
+
     contact.email = email || contact.email;
     contact.dob = dob || contact.dob;
     contact.firstName = firstName || contact.firstName;
     contact.lastName = lastName || contact.lastName;
+
     await contact.save();
+
     const updatedContact = await Contact.findById(
       contactId,
       "firstName lastName email dob phoneNumber"
@@ -132,7 +122,9 @@ exports.editContact = async (req) => {
 exports.deleteContact = async (req) => {
   try {
     const { contactId } = req.params;
+
     const contact = await Contact.findById(contactId);
+
     if (!contact) {
       throw responseError("Contact not found!", 404);
     }
