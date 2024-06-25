@@ -37,7 +37,7 @@ exports.getAllContacts = async (req) => {
     let contactCount;
 
     if (dob) {
-      const retrievedUser = await User.find(
+      retrievedUser = await User.find(
         { _id: userId, dob },
         "contacts"
       ).populate({
